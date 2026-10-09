@@ -1,0 +1,9 @@
+{
+  "name": "agora-skill-scripts",
+  "private": true,
+  "type": "module",
+  "description": "agora skill 的 node 依赖,仅 --nostr 公共墙模式需要 nostr-tools",
+  "dependencies": {
+    "nostr-tools": "^2.25.2"
+  }
+}
