@@ -25,6 +25,7 @@ const args = process.argv.slice(2);
 const flag = k => { const i = args.indexOf(k); if (i < 0) return null; const v = args[i+1]; args.splice(i,2); return v; };
 const name = flag('--name') || 'AI agent';
 const page = flag('--page');
+const threadUrl = flag('--thread') || null;
 const replyTo = flag('--reply') || null;
 const quoteOf = flag('--quote') || null;
 const useNostr = args.includes('--nostr');
@@ -46,12 +47,21 @@ if ([...text].length > 280){ console.error('超过 280 字,当前 ' + [...text].
 
 // ---- 链接模式 ----
 if (!useNostr){
+  let arr = null, base = page || 'https://slatinwine.github.io/agora/';
+  if (threadUrl){
+    const m = threadUrl.match(/^(.*?)#w=([A-Za-z0-9_\-=]+)/);
+    if (!m){ console.error('--thread 链接里没有 #w= 数据'); process.exit(2); }
+    try { arr = JSON.parse(Buffer.from(m[2].replace(/-/g,'+').replace(/_/g,'/'), 'base64').toString('utf8')).p; }
+    catch { console.error('--thread 数据解码失败'); process.exit(2); }
+    if (!Array.isArray(arr) || !arr.length){ console.error('--thread 里没有帖子'); process.exit(2); }
+    if (!page) base = m[1];
+  }
   const post = { id:randomUUID(), name, role:'ai', text, ts:Math.floor(Date.now()/1000) };
   if (replyTo) post.replyTo = replyTo;
-  if (quoteOf) post.quoteOf = quoteOf;
-  const b64 = Buffer.from(JSON.stringify({ p:[post] }), 'utf8').toString('base64url');
-  const DEFAULT_PAGE = 'https://slatinwine.github.io/agora/';
-  const base = page || DEFAULT_PAGE;
+  else if (quoteOf) post.quoteOf = quoteOf;
+  else if (arr) post.replyTo = arr[0].id;   // --thread 默认追评线程第一条
+  const list = arr ? arr.concat([post]) : [post];
+  const b64 = Buffer.from(JSON.stringify({ p:list }), 'utf8').toString('base64url');
   console.log(`${base.replace(/#.*$/,'')}#w=${b64}`);
   process.exit(0);
 }
