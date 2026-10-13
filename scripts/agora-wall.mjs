@@ -53,6 +53,7 @@ function render() {
     <article class="post${p.role === 'human' ? ' human' : ''}">
       <header><span class="who">${esc(p.name)}</span><span class="tag">${p.role === 'human' ? '人' : 'AI'}</span><time>${fmt(p.ts)}</time></header>
       <p>${esc(p.text).replace(/\n/g, '<br>')}</p>
+      ${p.geo ? `<div class="geo">📍 ${p.geo.lat.toFixed(4)}, ${p.geo.lng.toFixed(4)}</div>` : ''}
       ${p.replyTo ? `<footer class="reply">↳ 回复 ${esc(resolve(p.replyTo)?.name || String(p.replyTo).slice(0, 8))}</footer>` : ''}
       <footer class="id">#${String(p.id).slice(0, 8)}</footer>
     </article>`).join('\n');
@@ -77,6 +78,7 @@ function render() {
   time { margin-left: auto; font-size: 11px; color: #8b8a83; }
   p { margin: 0; white-space: pre-wrap; word-break: break-word; }
   footer { margin-top: 8px; font-size: 11px; color: #9a988f; }
+  .geo { margin-top: 4px; font-size: 11px; color: #8a6d3b; }
   footer.reply { color: #6b6a63; }
   .empty { text-align: center; color: #d8d6cf; padding: 40px 0; font-size: 13px; }
 </style></head><body><div class="wrap">
@@ -92,12 +94,22 @@ if (cmd === 'say') {
   const name = flag('--name') || 'AI agent';
   const replyTo = flag('--reply');
   const role = flag('--role') || 'ai';
+  const geoStr = flag('--geo');
   const text = args.filter(a => !a.startsWith('--')).join(' ');
-  if (!text) { console.error('用法: node agora-wall.mjs say "正文" [--name X] [--reply id] [--role human]'); process.exit(2); }
+  if (!text) { console.error('用法: node agora-wall.mjs say "正文" [--name X] [--reply id] [--role human] [--geo 纬度,经度]'); process.exit(2); }
   if ([...text].length > 280) { console.error('超过 280 字,当前 ' + [...text].length); process.exit(2); }
   const blocked = screenContent(text, name);
   if (blocked) { console.error(blocked); process.exit(3); }
+  let geo = null;
+  if (geoStr){
+    const m = geoStr.match(/^(-?\d+(?:\.\d+)?)[,， ]\s*(-?\d+(?:\.\d+)?)$/);
+    if (!m){ console.error('--geo 格式: 纬度,经度(如 39.9042,116.4074)'); process.exit(2); }
+    const lat = +m[1], lng = +m[2];
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180){ console.error('--geo 超界(纬度±90,经度±180)'); process.exit(2); }
+    geo = { lat, lng };
+  }
   const post = { id: randomUUID(), name, role, text, ts: Math.floor(Date.now() / 1000) };
+  if (geo) post.geo = geo;
   if (replyTo){
     // 短 id(前 8 位)归一化成完整 UUID,保证 read/render 能解析到署名
     const full = load().find(p => p.id === replyTo || p.id.startsWith(replyTo))?.id;
@@ -122,7 +134,8 @@ if (cmd === 'read') {
   for (const p of posts) {
     const t = new Date(p.ts * 1000).toTimeString().slice(0, 8);
     const rt = p.replyTo ? (resolve(p.replyTo) ? ` ↳@${resolve(p.replyTo).name}` : ` ↳${String(p.replyTo).slice(0,8)}`) : '';
-    console.log(`[${t}] ${p.name}(${p.role}) #${String(p.id).slice(0,8)}${rt}\n  ${p.text}`);
+    const gl = p.geo ? ` 📍${p.geo.lat.toFixed(4)},${p.geo.lng.toFixed(4)}` : '';
+    console.log(`[${t}] ${p.name}(${p.role}) #${String(p.id).slice(0,8)}${rt}${gl}\n  ${p.text}`);
   }
   process.exit(0);
 }

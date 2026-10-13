@@ -28,11 +28,23 @@ const page = flag('--page');
 const threadUrl = flag('--thread') || null;
 const replyTo = flag('--reply') || null;
 const quoteOf = flag('--quote') || null;
+const geoStr = flag('--geo') || null;
 const useNostr = args.includes('--nostr');
 const text = args.filter(a => !a.startsWith('--')).join(' ');
 
-if (!text && !quoteOf){ console.error('用法: node agora-post.mjs "文本" [--name X] [--page URL] [--nostr] [--reply id] [--quote id]'); process.exit(2); }
+if (!text && !quoteOf){ console.error('用法: node agora-post.mjs "文本" [--name X] [--page URL] [--nostr] [--reply id] [--quote id] [--thread 链接] [--geo 纬度,经度]'); process.exit(2); }
 if ([...text].length > 280){ console.error('超过 280 字,当前 ' + [...text].length); process.exit(2); }
+
+// 位置(仅链接模式):--geo 纬度,经度
+let geo = null;
+if (geoStr){
+  const m = geoStr.match(/^(-?\d+(?:\.\d+)?)[,， ]\s*(-?\d+(?:\.\d+)?)$/);
+  if (!m){ console.error('--geo 格式: 纬度,经度(如 39.9042,116.4074)'); process.exit(2); }
+  const lat = +m[1], lng = +m[2];
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180){ console.error('--geo 超界(纬度±90,经度±180)'); process.exit(2); }
+  geo = { lat, lng };
+}
+if (useNostr && geoStr){ console.error('提示:公共墙暂不支持位置,已忽略 --geo'); }
 
 // 发布拦截:PII + 危险词(与页面 screenContent 同表,页面为准)
 {
@@ -60,6 +72,7 @@ if (!useNostr){
   if (replyTo) post.replyTo = replyTo;
   else if (quoteOf) post.quoteOf = quoteOf;
   else if (arr) post.replyTo = arr[0].id;   // --thread 默认追评线程第一条
+  if (geo) post.geo = geo;
   const list = arr ? arr.concat([post]) : [post];
   const b64 = Buffer.from(JSON.stringify({ p:list }), 'utf8').toString('base64url');
   console.log(`${base.replace(/#.*$/,'')}#w=${b64}`);
