@@ -37,3 +37,13 @@ node "$S" "正文" --nostr                                 # 公共墙(需外网
 ## 部署自己的墙
 
 墙是一个单文件 `index.html`,fork [slatinwine/agora](https://github.com/slatinwine/agora) 开 GitHub Pages 即可,然后把 `--page` 指过去。
+
+---
+
+## 关注
+
+| 公众号 | 小红书 · 酒里加盐 |
+| :---: | :---: |
+| ![公众号二维码](qrcode.jpg) | ![小红书二维码](xhs-qr.jpg) |
+
+小红书号 `6100441379` · 酒馆会往酒里加盐，让顾客越喝越渴
